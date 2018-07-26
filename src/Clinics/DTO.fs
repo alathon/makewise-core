@@ -1,46 +1,97 @@
 namespace Clinics
 
 open Domain
+open Result
+open System
 
 module Dto =
+    open EmailAddress
+    open WrappedString
+
     type Name = {
         FirstName: string
         Initial: string
         LastName: string
-    }
+    } with 
+        static member ToDomain (dto:Name) :Result<Domain.Name,string list> = 
+            result {
+                let! first = String50.create dto.FirstName
+                let! last = String50.create dto.LastName
+                let initial = String1.create dto.Initial |> String1.asOption
+                return { FirstName = first; Initial = initial; LastName = last}
+            }
+        static member FromDomain (name:Domain.Name) :Name =
+            {
+                FirstName = name.FirstName |> String50.value
+                Initial = name.Initial |> Option.map String1.value |> defaultArg <| ""
+                LastName = name.LastName |> String50.value
+            }
 
     type Address = {
         Line1: string
         Line2: string
-    }
+    } with
+        static member ToDomain (dto:Address) :Result<Domain.Address,string list> =
+            result {
+                let! line1 = String50.create dto.Line1
+                let line2 = 
+                    match String50.create dto.Line2 with
+                    | Ok l -> Some l
+                    | Error _ -> None
+                return { 
+                    Line1 = line1
+                    Line2 = line2
+                }
+            }
+        static member FromDomain (addr:Domain.Address) :Address =
+            {
+                Line1 = String50.value addr.Line1
+                Line2 = addr.Line2 |> Option.map String50.value |> defaultArg <| ""
+            }
 
-    type Email = {
-        Email: string
+    type EmailAddress = {
+        EmailAddress: string
         IsVerified: bool
-    }
+    } with
+        static member FromDomain (email:Domain.EmailAddress.T) :EmailAddress =
+            match email with
+                | VerifiedEmail e -> { IsVerified = true; EmailAddress = e }
+                | UnverifiedEmail e -> { IsVerified = false; EmailAddress = e}
+                
+        static member ToDomain (dto:EmailAddress) :Result<Domain.EmailAddress.T,string list> = result {
+            return match dto with
+                    | { IsVerified = true; EmailAddress = e} -> e |> Domain.EmailAddress.create |> Domain.EmailAddress.verify
+                    | { IsVerified = false; EmailAddress = e} -> e |> Domain.EmailAddress.create
+        }
 
     type ContactDetails = {
         Address: Address
         Phone: string
-        Email: Email
+        Email: EmailAddress
     }
 
     type PatientRole = {
         Tag: string // e.g., PaceMaker | Transplant
         DeviceData: DeviceData // Data in case of PaceMaker role
-    } 
-    
-    type PatientRole with 
-        static member ToDomain (dto:PatientRole) :Result<Domain.PatientRole,string> =
+    } with
+        static member ToDomain (dto:PatientRole) :Result<Domain.PatientRole,string list> =
             match (dto.Tag, dto.DeviceData) with
-            | ("PaceMaker", data) -> Ok (Domain.PatientRole.PaceMakerRole data)
-            | ("Transplant", _) -> Ok Domain.PatientRole.TransplantRole
-            | _ -> Error "Invalid patient role"
+            | ("PaceMaker", data) -> Ok (PatientRole.PaceMakerRole data)
+            | ("Transplant", _) -> Ok PatientRole.TransplantRole
+            | _ -> Error ["Invalid patient role"]
         
         static member FromDomain (role:Domain.PatientRole) :PatientRole =
             match role with
-            | PaceMakerRole data -> { Tag = "PaceMaker"; DeviceData = data }
-            | TransplantRole -> { Tag = "Transplant"; DeviceData = Unchecked.defaultof<DeviceData> }
+            | PaceMakerRole data -> 
+                { 
+                    Tag = "PaceMaker"
+                    DeviceData = data 
+                }
+            | TransplantRole -> 
+                { 
+                    Tag = "Transplant"
+                    DeviceData = Unchecked.defaultof<DeviceData>
+                }
 
     type Patient = {
         PrimaryRole: PatientRole
@@ -48,30 +99,14 @@ module Dto =
         CprNumber: string
         Name: Name
         ContactDetails: ContactDetails
-    }
-
-module Patient =
-    open Dto
-    open Domain.EmailAddress
-
-    let fromDomain (patient:Domain.Patient) :Dto.Patient =
-        let name = {
-            FirstName = patient.Name.FirstName |> Domain.String50.value
-            Initial = patient.Name.Initial |> Option.map String1.value |> defaultArg <| "" // Map via String1.value or default to ""
-            LastName = patient.Name.LastName |> String50.value
-        }
-
+        CreatedAt: DateTime
+    } with
+    static member FromDomain (patient:Domain.Patient) :Patient =
+        let name = Name.FromDomain patient.Name
         let contactDetails = {
-            Address = { 
-                Line1 = patient.ContactDetails.Address.Line1
-                Line2 = patient.ContactDetails.Address.Line2 |> defaultArg <| "" 
-            }
+            Address = Address.FromDomain patient.ContactDetails.Address
             Phone = patient.ContactDetails.Phone |> defaultArg <| ""
-            Email = { IsVerified = match patient.ContactDetails.Email with
-                                    | VerifiedEmail _ -> true
-                                    | UnverifiedEmail _ -> false
-                      Email = match patient.ContactDetails.Email with | e v -> v
-            }
+            Email = EmailAddress.FromDomain patient.ContactDetails.Email
         }
 
         {
@@ -80,59 +115,30 @@ module Patient =
             Name = name
             ContactDetails = contactDetails
             CprNumber = patient.CprNumber |> CprNumber.value
+            CreatedAt = patient.CreatedAt
         }
 
-    let rec traverseResultA f list =
-        // define the applicative functions
-        let (<*>) ff r = match r with
-                            | Ok a -> Ok (ff a)
-                            | Error e -> Error e
+    static member ToDomain (dto:Patient) :Result<Domain.Patient,string list> = result {
+            let! name = Name.ToDomain dto.Name
+            let! addr = Address.ToDomain dto.ContactDetails.Address
+            let! email = EmailAddress.ToDomain dto.ContactDetails.Email
 
-        let retn = Result.bind
-
-        let a = retn []
-
-        // define a "cons" function
-        let cons head tail = head :: tail
-
-        // loop through the list
-        match list with
-        | [] -> 
-            // if empty, lift [] to a Result
-            retn []
-        | head::tail ->
-            retn cons <*> (f head) <*> (traverseResultA f tail)
-
-    let toDomain (dto:Dto.Patient) :Result<Domain.Patient,string> =
-        let name = Name.Create dto.Name.FirstName dto.Name.Initial dto.Name.LastName
-        let contactDetails:Domain.ContactDetails = {
-            Address = {
-                Line1 = dto.ContactDetails.Address.Line1
-                Line2 = Some dto.ContactDetails.Address.Line2 |> Option.filter System.String.IsNullOrWhiteSpace
+            let contactDetails:Domain.ContactDetails = {
+                Address = addr
+                Phone = Some dto.ContactDetails.Phone |> Option.filter System.String.IsNullOrWhiteSpace
+                Email = email
             }
-            Phone = Some dto.ContactDetails.Phone |> Option.filter System.String.IsNullOrWhiteSpace
-            Email = match dto.ContactDetails.Email with
-                    | { IsVerified = true; Email = e} -> e |> Domain.EmailAddress.create |> Domain.EmailAddress.verify
-                    | { IsVerified = false; Email = e} -> e |> Domain.EmailAddress.create
-        }
+            
+            let! primaryRole = PatientRole.ToDomain dto.PrimaryRole
+            let! secondaryRoles = dto.SecondaryRoles |> Array.toList |> Result.traverseA PatientRole.ToDomain
+            let! cprNumber = CprNumber.make dto.CprNumber
 
-        let primaryRole = PatientRole.ToDomain dto.PrimaryRole
-        let secondaryRoles = dto.SecondaryRoles |> Array.map PatientRole.ToDomain
-
-        // Maybe what we want is to map Result<PatientRole,string>[] to Result<PatientRole[],string[]> ??
-        // Yep.. That seems to be it.
-
-
-        // TODO: Below needs re-writing with above note!
-        // This is _super_ ugly. Isn't there a better way to do this?
-        // The behavior we want is to _either_ provide a string[] of errors,
-        // OR a PatientRole[] of roles.
-        let sss (res:Result<PatientRole,string>[]) = 
-            let mutable roles:PatientRole[] = [||]
-            let mutable errors:string[] = [||]
-            res |> Array.map (fun r -> match r with 
-                                        | Ok d -> roles = Array.concat [|d|] roles
-                                        | Error e -> errors = Array.concat [|e|] errors)
-            (roles,errors)
-
-        let (roles,errors) = sss secondaryRoles
+            return {
+                Name = name
+                ContactDetails = contactDetails
+                PrimaryRole = primaryRole
+                SecondaryRoles = secondaryRoles
+                CprNumber = cprNumber
+                CreatedAt = dto.CreatedAt
+            }
+    }
