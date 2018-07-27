@@ -10,6 +10,7 @@ module Patient =
         open Result
         let getById i :HttpHandler = 
             match Db.Patients.getById i with
+                // Domain -> DTO -> JSON
                 | Ok p -> p |> Clinics.Dto.Patient.FromDomain |> json
                 | Error e -> e |> List.toSeq |> String.concat "," |> text
 
