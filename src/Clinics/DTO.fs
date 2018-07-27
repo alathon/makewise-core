@@ -1,26 +1,26 @@
 namespace Clinics
 
-open Domain
+open Clinics.Domain
 open Result
 open System
 
 module Dto =
-    open EmailAddress
     open WrappedString
+    open Patient.EmailAddress
 
     type Name = {
         FirstName: string
         Initial: string
         LastName: string
     } with 
-        static member ToDomain (dto:Name) :Result<Domain.Name,string list> = 
+        static member ToDomain (dto:Name) :Result<Domain.Patient.Name,string list> = 
             result {
                 let! first = String50.create dto.FirstName
                 let! last = String50.create dto.LastName
                 let initial = String1.create dto.Initial |> String1.asOption
                 return { FirstName = first; Initial = initial; LastName = last}
             }
-        static member FromDomain (name:Domain.Name) :Name =
+        static member FromDomain (name:Domain.Patient.Name) :Name =
             {
                 FirstName = name.FirstName |> String50.value
                 Initial = name.Initial |> Option.map String1.value |> defaultArg <| ""
@@ -31,7 +31,7 @@ module Dto =
         Line1: string
         Line2: string
     } with
-        static member ToDomain (dto:Address) :Result<Domain.Address,string list> =
+        static member ToDomain (dto:Address) :Result<Domain.Patient.Address,string list> =
             result {
                 let! line1 = String50.create dto.Line1
                 let line2 = 
@@ -43,7 +43,7 @@ module Dto =
                     Line2 = line2
                 }
             }
-        static member FromDomain (addr:Domain.Address) :Address =
+        static member FromDomain (addr:Domain.Patient.Address) :Address =
             {
                 Line1 = String50.value addr.Line1
                 Line2 = addr.Line2 |> Option.map String50.value |> defaultArg <| ""
@@ -53,15 +53,15 @@ module Dto =
         EmailAddress: string
         IsVerified: bool
     } with
-        static member FromDomain (email:Domain.EmailAddress.T) :EmailAddress =
+        static member FromDomain (email:Domain.Patient.EmailAddress.T) :EmailAddress =
             match email with
                 | VerifiedEmail e -> { IsVerified = true; EmailAddress = e }
                 | UnverifiedEmail e -> { IsVerified = false; EmailAddress = e}
                 
-        static member ToDomain (dto:EmailAddress) :Result<Domain.EmailAddress.T,string list> = result {
+        static member ToDomain (dto:EmailAddress) :Result<Domain.Patient.EmailAddress.T,string list> = result {
             return match dto with
-                    | { IsVerified = true; EmailAddress = e} -> e |> Domain.EmailAddress.create |> Domain.EmailAddress.verify
-                    | { IsVerified = false; EmailAddress = e} -> e |> Domain.EmailAddress.create
+                    | { IsVerified = true; EmailAddress = e} -> e |> Domain.Patient.EmailAddress.create |> Domain.Patient.EmailAddress.verify
+                    | { IsVerified = false; EmailAddress = e} -> e |> Domain.Patient.EmailAddress.create
         }
 
     type ContactDetails = {
@@ -74,20 +74,20 @@ module Dto =
         Tag: string // e.g., PaceMaker | Transplant
         DeviceData: DeviceData // Data in case of PaceMaker role
     } with
-        static member ToDomain (dto:PatientRole) :Result<Domain.PatientRole,string list> =
+        static member ToDomain (dto:PatientRole) :Result<Domain.Patient.PatientRole,string list> =
             match (dto.Tag, dto.DeviceData) with
-            | ("PaceMaker", data) -> Ok (PatientRole.PaceMakerRole data)
-            | ("Transplant", _) -> Ok PatientRole.TransplantRole
+            | ("PaceMaker", data) -> Ok (Domain.Patient.PatientRole.PaceMakerRole data)
+            | ("Transplant", _) -> Ok Domain.Patient.PatientRole.TransplantRole
             | _ -> Error ["Invalid patient role"]
         
-        static member FromDomain (role:Domain.PatientRole) :PatientRole =
+        static member FromDomain (role:Domain.Patient.PatientRole) :PatientRole =
             match role with
-            | PaceMakerRole data -> 
+            | Domain.Patient.PaceMakerRole data -> 
                 { 
                     Tag = "PaceMaker"
                     DeviceData = data 
                 }
-            | TransplantRole -> 
+            | Domain.Patient.TransplantRole -> 
                 { 
                     Tag = "Transplant"
                     DeviceData = Unchecked.defaultof<DeviceData>
@@ -101,7 +101,7 @@ module Dto =
         ContactDetails: ContactDetails
         CreatedAt: DateTime
     } with
-    static member FromDomain (patient:Domain.Patient) :Patient =
+    static member FromDomain (patient:Domain.Patient.T) :Patient =
         let name = Name.FromDomain patient.Name
         let contactDetails = {
             Address = Address.FromDomain patient.ContactDetails.Address
@@ -114,16 +114,16 @@ module Dto =
             SecondaryRoles = patient.SecondaryRoles |> List.map PatientRole.FromDomain |> List.toArray
             Name = name
             ContactDetails = contactDetails
-            CprNumber = patient.CprNumber |> CprNumber.value
+            CprNumber = patient.CprNumber |> Domain.Patient.CprNumber.value
             CreatedAt = patient.CreatedAt
         }
 
-    static member ToDomain (dto:Patient) :Result<Domain.Patient,string list> = result {
+    static member ToDomain (dto:Patient) :Result<Domain.Patient.T,string list> = result {
             let! name = Name.ToDomain dto.Name
             let! addr = Address.ToDomain dto.ContactDetails.Address
             let! email = EmailAddress.ToDomain dto.ContactDetails.Email
 
-            let contactDetails:Domain.ContactDetails = {
+            let contactDetails:Domain.Patient.ContactDetails = {
                 Address = addr
                 Phone = Some dto.ContactDetails.Phone |> Option.filter System.String.IsNullOrWhiteSpace
                 Email = email
@@ -131,7 +131,7 @@ module Dto =
             
             let! primaryRole = PatientRole.ToDomain dto.PrimaryRole
             let! secondaryRoles = dto.SecondaryRoles |> Array.toList |> Result.traverseA PatientRole.ToDomain
-            let! cprNumber = CprNumber.make dto.CprNumber
+            let! cprNumber = Domain.Patient.CprNumber.make dto.CprNumber
 
             return {
                 Name = name

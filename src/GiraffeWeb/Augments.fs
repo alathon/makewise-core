@@ -20,7 +20,7 @@ module Result =
     let switch f x = 
         f x |> Result.Ok
 
-    let tap f x =
+    let tee f x =
         f x
         x |> Result.Ok
 
@@ -77,6 +77,11 @@ module Result =
             Result.Ok cons <*> (f head) <*> tail
 
         List.foldBack folder list initState 
+
+    let bindOption f xOpt =
+        match xOpt with
+        | Some x -> f x |> Result.map Some
+        | None -> Ok None
 
     let ofOption err = function
     | Some x -> Ok x

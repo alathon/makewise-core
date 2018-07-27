@@ -1,4 +1,4 @@
-namespace Clinics
+namespace Clinics.Domain
 
 open System
 

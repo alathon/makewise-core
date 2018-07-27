@@ -10,7 +10,7 @@ module Patient =
         open Result
         let getById i :HttpHandler = 
             match Db.Patients.getById i with
-                | Ok p -> p |> json
+                | Ok p -> p |> Clinics.Dto.Patient.FromDomain |> json
                 | Error e -> e |> List.toSeq |> String.concat "," |> text
 
         let setById id : HttpHandler =
@@ -19,17 +19,16 @@ module Patient =
                     // HTTP req body -> DTO
                     let! patient = ctx.BindJsonAsync<Clinics.Dto.Patient>()
                     let change = result {
-                        // DTO -> Domain -> DTO -> DB action
+                        // DTO -> Domain -> DB action
                         let recipe = 
-                            Patient.ToDomain 
-                            >=> switch Patient.FromDomain 
+                            Patient.ToDomain
                             >=> Db.Patients.setById id
 
                         return! recipe patient
                     }
 
                     return! match change with
-                            | Ok p -> Successful.OK p next ctx
+                            | Ok _ -> Successful.OK "Ok" next ctx
                             | Error e -> Successful.OK e next ctx
                 }
     let api :HttpHandler = 

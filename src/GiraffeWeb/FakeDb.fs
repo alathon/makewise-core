@@ -40,23 +40,21 @@ module private Fake =
             CreatedAt = createdAt
         }
 
-        
-
-module Result =
-    let ofOption err = function
-        | Some x -> Ok x
-        | None -> Error err
-
+// A fake in-memory DB, which just stores the Patient.Dto's.
+// Normally you'd be storing the SQLProvider's generated type,
+// and so we would normally need an explicit toDomain function
+// from the SQLProvider's generated type to the domain type.
+// For now we use the Dto's existing ToDomain function for brevity.
 module Db =
     module Patients =
-        let mutable private patients :Clinics.Dto.Patient[] = seq { for _ in 0 .. 9 do yield Fake.makePatient } |> Seq.toArray
+        let mutable private patients :Patient[] = seq { for _ in 0 .. 9 do yield Fake.makePatient } |> Seq.toArray
 
-        let setById id patient :Result<Patient,string list> =
+        let setById id patient :Result<unit,string list> =
             if id <= Array.length patients-1 && id >= 0
-                then patients.[id] <- patient; Ok patient
+                then patients.[id] <- Clinics.Dto.Patient.FromDomain patient; Ok ()
                 else Error ["No such patient"]
 
-        let getById id :Result<Patient,string list> = 
+        let getById id :Result<Clinics.Domain.Patient.T,string list> = 
             if id <= Array.length patients-1 && id >= 0
-                then Ok patients.[id]
+                then patients.[id] |> Clinics.Dto.Patient.ToDomain
                 else Error ["No such patient"]

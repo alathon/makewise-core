@@ -1,8 +1,9 @@
-namespace Clinics
+namespace Clinics.Domain
 
 open System
+open Clinics
 
-module Domain = 
+module Patient = 
     open WrappedString
 
     type CprNumber = private CprNumber of string
@@ -13,7 +14,7 @@ module Domain =
                 else Ok (CprNumber s)
         
         let value (CprNumber cpr) = cpr
-
+    
     module EmailAddress =
         type T =
             private
@@ -51,7 +52,7 @@ module Domain =
         | PaceMakerRole of DeviceData
         | TransplantRole
 
-    type Patient = {
+    type T = {
         PrimaryRole: PatientRole;
         SecondaryRoles: PatientRole list;
         CprNumber: CprNumber;

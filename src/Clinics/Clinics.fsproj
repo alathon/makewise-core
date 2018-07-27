@@ -3,10 +3,10 @@
     <TargetFramework>netstandard2.0</TargetFramework>
   </PropertyGroup>
   <ItemGroup>
-    <Compile Include="SharedTypes.fs" />
     <Compile Include="Augments.fs" />
+    <Compile Include="SharedTypes.fs" />
     <Compile Include="Domain/WrappedString.fs" />
-    <Compile Include="Domain/Domain.fs" />
+    <Compile Include="Domain/Patient.fs" />
     <Compile Include="DTO.fs" />
   </ItemGroup>
   <Import Project="..\..\.paket\Paket.Restore.targets" />
