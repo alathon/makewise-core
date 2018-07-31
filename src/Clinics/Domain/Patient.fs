@@ -1,62 +1,53 @@
 namespace Clinics.Domain
 
 open System
-open Clinics
+open WrappedString
+open System
 
-module Patient = 
-    open WrappedString
-
-    type CprNumber = private CprNumber of string
-    module CprNumber =
-        let make s = 
-            if String.IsNullOrEmpty(s) || not(System.Text.RegularExpressions.Regex.IsMatch(s,@"^\d{10}$"))
-                then Error ["Invalid CPR"]
-                else Ok (CprNumber s)
-        
-        let value (CprNumber cpr) = cpr
+type CprNumber = private CprNumber of string
+module CprNumber =
+    let make s = 
+        if String.IsNullOrEmpty(s) || not(System.Text.RegularExpressions.Regex.IsMatch(s,@"^\d{10}$"))
+            then Error ["Invalid CPR"]
+            else Ok (CprNumber s)
     
-    module EmailAddress =
-        type T =
-            private
-            | VerifiedEmail of string
-            | UnverifiedEmail of string
-        
-        let create = UnverifiedEmail
+    let value (CprNumber cpr) = cpr
 
-        let verify = function
-            | UnverifiedEmail e -> VerifiedEmail e
-            | VerifiedEmail e -> VerifiedEmail e
+type Name = {
+    FirstName: String100
+    Initial: String1 option
+    LastName: String100
+}
 
-        let (|VerifiedEmail|UnverifiedEmail|) = function
-            | VerifiedEmail e -> VerifiedEmail e
-            | UnverifiedEmail e -> UnverifiedEmail e
+type Address = {
+    Line1: String100
+    Line2: String100 option
+}
 
-    type Name = {
-        FirstName: String50;
-        Initial: String1 option;
-        LastName: String50;
-    }
+type ContactDetails = {
+    Address: Address
+    Phone: SafeString
+    Email: String100 option
+}
 
-    type Address = {
-        Line1: String50;
-        Line2: String50 option;
-    }
+type DeviceType =
+    | ICD
+    | LR
 
-    type ContactDetails = {
-        Address: Address;
-        Phone: string option;
-        Email: EmailAddress.T
-    }
+type Device = {
+    Type: DeviceType
+    ImplantedAt: DateTime
+    SerialNumber: String100
+    ImplantationReason: SafeString option
+    Name: String100
+    LastReportedBatteryLifetime: int
+}
 
-    type PatientRole =
-        | PaceMakerRole of DeviceData
-        | TransplantRole
-
-    type T = {
-        PrimaryRole: PatientRole;
-        SecondaryRoles: PatientRole list;
-        CprNumber: CprNumber;
-        Name: Name;
-        ContactDetails: ContactDetails;
-        CreatedAt: DateTime;
-    }
+type Patient = {
+    Job: SafeString option
+    LocalHospital: SafeString option
+    Device: Device option
+    CprNumber: CprNumber
+    Name: Name
+    ContactDetails: ContactDetails
+}

@@ -8,7 +8,7 @@
     <Compile Include="Domain/WrappedString.fs" />
     <Compile Include="Domain/Patient.fs" />
     <Compile Include="DTO/DTOTypes.fs" />
-    <Compile Include="DTO/Patient.fs" />
+    <Compile Include="DTO/PatientTypes.fs" />
   </ItemGroup>
   <Import Project="..\..\.paket\Paket.Restore.targets" />
 </Project>

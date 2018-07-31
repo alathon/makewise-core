@@ -1,7 +1,6 @@
 namespace Clinics.Dto
 
 open System
-open Clinics
 
 type Name = {
     FirstName: string
@@ -19,23 +18,26 @@ type EmailAddress = {
     IsVerified: bool
 }
 
-
 type ContactDetails = {
     Address: Address
     Phone: string
-    Email: EmailAddress
+    Email: string
 }
 
-type PatientRole = {
-    Tag: string // e.g., PaceMaker | Transplant
-    DeviceData: DeviceData // Data in case of PaceMaker role
+type Device = {
+    Type: string
+    ImplantedAt: DateTime
+    SerialNumber: string
+    ImplantationReason: string
+    Name: string
+    LastReportedBatteryLifetime: int
 }
 
 type Patient = {
-    PrimaryRole: PatientRole
-    SecondaryRoles: PatientRole[]
+    Job: string
+    LocalHospital: string
     CprNumber: string
     Name: Name
     ContactDetails: ContactDetails
-    CreatedAt: DateTime
+    Device: Device
 }

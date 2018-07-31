@@ -13,7 +13,6 @@ module Patient =
                 // Domain -> DTO -> JSON
                 | Ok p -> p |> Clinics.Dto.Patient.FromDomain |> json
                 | Error e -> e |> List.toSeq |> String.concat "," |> text
-
         let setById id : HttpHandler =
             fun (next: HttpFunc) (ctx: HttpContext) ->
                 task {

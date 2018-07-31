@@ -1,7 +1,6 @@
 namespace Web
 
 open Clinics.Dto
-open Clinics.SharedTypes
 open System
 
 module private Fake =
@@ -11,33 +10,29 @@ module private Fake =
             Line1 = "Frederikssundsvej 94F, 1.TH"
             Line2 = null 
         }
-        let email = { IsVerified = true; EmailAddress = "martin@itsolveonline.net" }
+        let email = "martin@itsolveonline.net"
         let phone = "+45 31424342"
         let contactDetails = { Address = address; Phone = phone; Email = email }
-        let deviceData = {
-                ActivatedAt = DateTime.Now
-                DateOfLastShock = None
-                FirstImplantation = DateTime.Now
+        let device = {
+            Type = "ICD"
+            ImplantedAt = DateTime.UtcNow
+            SerialNumber = "1234567"
+            ImplantationReason = "For giving of life"
+            Name = "AwesomeDevice(tm) CRX-20000"
+            LastReportedBatteryLifetime = 25
         }
-
-        let primaryRole:PatientRole = {
-            Tag = "PaceMaker"
-            DeviceData = deviceData
-        }
-
-        let secondaryRoles = [| { Tag = "Transplant"; DeviceData = Unchecked.defaultof<DeviceData>; } |]
 
         let cprNumber = "1212121234"
-        
-        let createdAt = DateTime.UtcNow
+        let job = "Brogrammer"
+        let localHospital = "Herlev"
 
         {
             Name = name
             ContactDetails = contactDetails
-            PrimaryRole = primaryRole
-            SecondaryRoles = secondaryRoles
             CprNumber = cprNumber
-            CreatedAt = createdAt
+            Device = device
+            Job = job
+            LocalHospital = localHospital
         }
 
 // A fake in-memory DB, which just stores the Patient.Dto's.
@@ -49,12 +44,12 @@ module Db =
     module Patients =
         let mutable private patients :Patient[] = seq { for _ in 0 .. 9 do yield Fake.makePatient } |> Seq.toArray
 
-        let setById id patient :Result<unit,string list> =
+        let setById id patient =
             if id <= Array.length patients-1 && id >= 0
                 then patients.[id] <- Clinics.Dto.Patient.FromDomain patient; Ok ()
                 else Error ["No such patient"]
 
-        let getById id :Result<Clinics.Domain.Patient.T,string list> = 
+        let getById id = 
             if id <= Array.length patients-1 && id >= 0
                 then patients.[id] |> Clinics.Dto.Patient.ToDomain
-                else Error ["No such patient"]
+                else Error ["No such patient: "]
