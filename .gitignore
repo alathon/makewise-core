@@ -451,3 +451,6 @@ bower_components
 
 ### WebSharper ###
 Scripts/
+
+## Dotnet
+out/
