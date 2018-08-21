@@ -3,8 +3,10 @@ services:
   web:
     build: .
     ports:
-      - "5000":"5000"
+      - "5000:5000"
     depends_on:
       - db
+    environment:
+      - ASPNETCORE_URLS=http://*:5000
   db:
     image: "postgres:alpine"

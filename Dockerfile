@@ -20,14 +20,15 @@ RUN echo 'en_US.UTF-8 UTF-8' > /etc/locale.gen && /usr/sbin/locale-gen
 WORKDIR /app
 COPY paket.lock paket.dependencies makewise-core.sln ./
 COPY .paket .paket
-COPY src/Clinics/*.fsproj ./src/Clinics/
-COPY src/GiraffeWeb/*.fsproj ./src/GiraffeWeb/
-RUN dotnet restore
+COPY src/Clinics/*.fsproj src/Clinics/paket.references ./src/Clinics/
+COPY src/Web/*.fsproj src/Web/paket.references ./src/Web/
+RUN mono .paket/paket.exe restore
+# RUN dotnet restore
 
 # Copy and publish app
 WORKDIR /app/
 COPY src/Clinics/. ./src/Clinics/
-COPY src/GiraffeWeb/. ./src/GiraffeWeb/
+COPY src/Web/. ./src/Web/
 RUN dotnet publish -c Release -o out
 
 # Test app -- TODO
@@ -39,7 +40,7 @@ RUN dotnet publish -c Release -o out
 # Build runtime
 FROM microsoft/dotnet:2.1-runtime-alpine AS runtime
 WORKDIR /app
-COPY --from=build /app/src/GiraffeWeb/out ./
+COPY --from=build /app/src/Web/out ./
 COPY --from=build /app/.paket .paket
-EXPOSE 80
-ENTRYPOINT ["dotnet", "GiraffeWeb.dll"]
+EXPOSE 5000
+ENTRYPOINT ["dotnet", "Web.dll"]

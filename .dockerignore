@@ -1,1 +1,4 @@
 out/
+packages
+paket-files
+.paket/paket.targets
